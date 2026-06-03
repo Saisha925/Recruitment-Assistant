@@ -35,7 +35,7 @@ class MatchAgent:
             return json.dumps(job)
         return json.dumps({"error": "Job not found"})
 
-    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
     def eval_cand(self, res_json: str, j_id: str) -> str:
         job_json = self.get_job(j_id)
         prompt = f"Resume:\n{res_json}\n\nJob Requirements:\n{job_json}"

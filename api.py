@@ -63,6 +63,9 @@ async def process_resume(file: UploadFile, job_id: str = Form(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        print(f"\n❌ PIPELINE CRASHED: {str(e)}\n") # <-- Add this line
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/schedule-interview")
 async def schedule_interview(email: str = Form(...)):
