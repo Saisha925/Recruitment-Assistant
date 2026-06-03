@@ -2,107 +2,92 @@ import streamlit as st
 import json
 import time
 import pandas as pd
+import os
+from dotenv import load_dotenv
 
-# Import our AI Agents
+load_dotenv()
+
 from src.agents.resume_agent import ResumeAgent
 from src.agents.match_agent import MatchAgent
 from src.agents.rank_agent import RankAgent
 from src.agents.interview_agent import InterviewAgent
 
-# Initialize Agents
 @st.cache_resource
 def load_agents():
     return ResumeAgent(), MatchAgent(), RankAgent(), InterviewAgent()
 
-resume_agent, match_agent, rank_agent, interview_agent = load_agents()
+ra, ma, rka, ia = load_agents()
 
-# --- UI Setup ---
-st.set_page_config(page_title="AI Recruitment Assistant", layout="wide", page_icon="🤖")
+st.set_page_config(page_title="AI Recruitment", layout="wide")
 st.title("🤖 AI-Powered Recruitment Assistant")
-st.markdown("Automate resume screening, job matching, and interview scheduling with multi-agent AI.")
 
-# --- Sidebar: Input Controls ---
+if 'run' not in st.session_state:
+    st.session_state.run = False
+if 'res' not in st.session_state:
+    st.session_state.res = None
+if 'match' not in st.session_state:
+    st.session_state.match = None
+if 'rank' not in st.session_state:
+    st.session_state.rank = None
+
 with st.sidebar:
     st.header("Upload Candidate")
-    target_job = st.selectbox("Select Target Role", ["REQ-101: AI/ML Engineer", "REQ-102: Data Scientist"])
-    job_id = target_job.split(":")[0]
+    target = st.selectbox("Select Role", ["REQ-101: AI/ML Engineer", "REQ-102: Data Scientist"])
+    j_id = target.split(":")[0]
     
-    uploaded_file = st.file_uploader("Upload Resume (PDF/Docx)", type=["pdf", "docx", "txt"])
+    file = st.file_uploader("Upload Resume", type=["pdf", "docx", "txt"])
     
-    start_pipeline = st.button("Run AI Pipeline", type="primary", use_container_width=True)
+    if st.button("Run AI Pipeline", type="primary", use_container_width=True):
+        if file:
+            st.session_state.run = True
+            with st.spinner("Processing..."):
+                res_json = ra.process_resume(file)
+                st.session_state.res = json.loads(res_json)
+                
+                m_json = ma.eval_cand(res_json, j_id)
+                st.session_state.match = json.loads(m_json)
+                
+                rk_json = rka.rank(j_id)
+                st.session_state.rank = json.loads(rk_json)
+        else:
+            st.warning("Upload a file first.")
 
-# --- Main Dashboard ---
-if start_pipeline and uploaded_file is not None:
-    # We use st.status to show the user exactly what the agents are doing in real-time
-    with st.status("Initializing AI Agent Pipeline...", expanded=True) as status:
-        
-        # 1. Resume Agent
-        st.write("📄 **Resume Agent:** Extracting and structuring candidate data...")
-        time.sleep(1) # Simulated network delay for UI feel
-        resume_json = resume_agent.process_resume(uploaded_file.name)
-        resume_data = json.loads(resume_json)
-        
-        # 2. Match Agent
-        st.write(f"🎯 **Job Matching Agent:** Evaluating against {job_id} requirements...")
-        time.sleep(1)
-        match_json = match_agent.eval_cand(resume_json, job_id)
-        match_data = json.loads(match_json)
-        
-        # 3. Rank Agent
-        st.write("📊 **Ranking Agent:** Updating candidate leaderboard...")
-        time.sleep(1)
-        rank_json = rank_agent.rank(job_id)
-        rank_data = json.loads(rank_json)
-        
-        status.update(label="AI Pipeline Complete!", state="complete", expanded=False)
-
-    # --- Results Visualization ---
+if st.session_state.run and st.session_state.res:
     st.divider()
+    c1, c2 = st.columns([1, 1])
     
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
+    with c1:
         st.subheader("Candidate Profile")
-        st.write(f"**Name:** {resume_data['name']}")
-        st.write(f"**Email:** {resume_data['email']}")
-        st.write(f"**Education:** {resume_data['edu']}")
-        st.write(f"**Years of Experience:** {resume_data['yoe']}")
-        st.write("**Identified Skills:**")
-        st.button(", ".join(resume_data['skills']), disabled=True) # Used as a styling pill
+        st.write(f"**Name:** {st.session_state.res['name']}")
+        st.write(f"**Email:** {st.session_state.res['email']}")
+        st.write(f"**Education:** {st.session_state.res['edu']}")
+        st.write(f"**Experience:** {st.session_state.res['yoe']} years")
+        st.button(", ".join(st.session_state.res['skills']), disabled=True)
         
-    with col2:
+    with c2:
         st.subheader("AI Evaluation")
-        
-        # Color code the metric based on score
-        delta_color = "normal" if match_data['score'] >= 75 else "inverse"
-        st.metric(label="Match Score", value=f"{match_data['score']}/100", delta=match_data['status'], delta_color=delta_color)
-        
-        st.info(f"**AI Reasoning:** {match_data['reason']}")
+        col = "normal" if st.session_state.match['score'] >= 75 else "inverse"
+        st.metric("Match Score", f"{st.session_state.match['score']}/100", st.session_state.match['status'], delta_color=col)
+        st.info(f"**Reason:** {st.session_state.match['reason']}")
 
     st.divider()
-
-    # --- Human-in-the-Loop & Interview Agent ---
     st.subheader("Leaderboard & Next Steps")
     
-    # Display leaderboard as a clean Pandas dataframe
-    df = pd.DataFrame(rank_data)
+    df = pd.DataFrame(st.session_state.rank)
     st.dataframe(df, use_container_width=True, hide_index=True)
     
-    if match_data['status'] == "Shortlisted":
-        st.success(f"{resume_data['name']} has been shortlisted by the AI. Would you like to schedule an interview?")
+    if st.session_state.match['status'] == "Shortlisted":
+        st.success(f"{st.session_state.res['name']} is shortlisted. Schedule interview?")
         
         if st.button("Approve & Schedule Interview"):
-            with st.spinner("🗓️ Interview Agent checking calendars..."):
+            with st.spinner("Booking..."):
                 time.sleep(1.5)
-                booking_json = interview_agent.book(resume_data['email'])
-                booking_data = json.loads(booking_json)
+                b_json = ia.book(st.session_state.res['email'])
+                b_data = json.loads(b_json)
                 
             st.balloons()
-            st.success(f"**Interview successfully booked!** \n\nTime: {booking_data['start']} to {booking_data['end']}")
+            st.success(f"**Booked!** \n\nTime: {b_data['start']} to {b_data['end']}")
     else:
-        st.error("Candidate did not meet the minimum threshold for this role.")
-
-elif start_pipeline and uploaded_file is None:
-    st.warning("Please upload a resume file in the sidebar to begin.")
-else:
-    st.info("👈 Upload a resume in the sidebar to trigger the AI pipeline.")
+        st.error("Candidate rejected.")
+elif not st.session_state.run:
+    st.info("Upload a resume to begin.")
