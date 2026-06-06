@@ -5,6 +5,7 @@ import PyPDF2
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+# pyrefly: ignore [missing-import]
 from src.schemas import ResumeData
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -78,7 +79,7 @@ class ResumeAgent:
         
         # 2. Pass the real text to the LLM
         res = self.client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.5-flash',
             contents=f"Extract this raw resume data into JSON: {raw_text}",
             config=types.GenerateContentConfig(
                 system_instruction=SYS_PROMPT,

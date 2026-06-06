@@ -51,7 +51,7 @@ class MatchAgent:
         prompt = f"Resume:\n{res_json}\n\nJob Requirements:\n{job_json}"
         
         res = self.client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SYS_PROMPT,

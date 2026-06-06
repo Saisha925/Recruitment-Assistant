@@ -3,79 +3,65 @@ import json
 import sqlite3
 import traceback
 from dotenv import load_dotenv
-
-# Load .env BEFORE importing agents (they read GEMINI_API_KEY at import time)
-load_dotenv()
-
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from src.agents.resume_agent import ResumeAgent
 from src.agents.match_agent import MatchAgent
 from src.agents.rank_agent import RankAgent
 from src.agents.interview_agent import InterviewAgent
 
+load_dotenv()
+
 app = FastAPI(title="AI Recruitment API")
 
-# Allow your React app (running on a different port) to talk to this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # Default Next.js port
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize Agents
 ra = ResumeAgent()
 ma = MatchAgent()
 rka = RankAgent()
 ia = InterviewAgent()
 
+class SchedReq(BaseModel):
+    cand_id: int
+    name: str
+    email: str
+    job_id: str
+
 @app.get("/api/jobs")
 async def get_jobs():
-    """Fetch available jobs from the SQLite database."""
-    db_path = os.getenv("DATABASE_URL", "data/recruitment.db")
+    db = os.getenv("DATABASE_URL", "data/recruitment.db")
     try:
-        conn = sqlite3.connect(db_path)
-        curr = conn.cursor()
-        curr.execute("SELECT id, title FROM jobs")
-        jobs = [{"id": row[0], "title": row[1]} for row in curr.fetchall()]
+        conn = sqlite3.connect(db)
+        cur = conn.cursor()
+        cur.execute("SELECT id, title FROM jobs")
+        jobs = [{"id": r[0], "title": r[1]} for r in cur.fetchall()]
         conn.close()
         return jobs
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/api/process-resume")
 async def process_resume(
     job_id: str = Form(...),
     file: UploadFile = File(...)
-    ):
+):
     try:
-        print(f"🚀 Starting pipeline for Job ID: {job_id}")
-        
-        # 1. Parse Resume 
         res_json = ra.process_resume(file.file)
-        print("✅ Resume parsed successfully!")
-        
-        # Clean markdown formatting if Gemini added it
         res_json = res_json.replace('```json', '').replace('```', '').strip()
         res_data = json.loads(res_json)
         
-        # 2. Match Candidate
         match_json = ma.eval_cand(res_json, job_id)
-        print("✅ Candidate matched successfully!")
-        
-        # Clean markdown formatting here too
         match_json = match_json.replace('```json', '').replace('```', '').strip()
         match_data = json.loads(match_json)
         
-        # 3. Rank Candidate
-        # RankAgent reads from DB (MatchAgent already saved there)
         rank_json = rka.rank(job_id)
-        print("✅ Candidate ranked and saved to SQLite!")
-        
-        # 4. Get Leaderboard
         leaderboard = json.loads(rank_json)
         
         return {
@@ -84,25 +70,35 @@ async def process_resume(
             "match": match_data,
             "leaderboard": leaderboard
         }
-        
     except Exception as e:
-        print("\n" + "="*50)
-        print("❌ PIPELINE CRASHED! Here is the exact error:")
-        traceback.print_exc()  # This will force the terminal to show the exact line that failed!
-        print("="*50 + "\n")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/schedule-interview")
-async def schedule_interview(email: str = Form(...)):
-    """Trigger the Interview Agent."""
+@app.post("/api/schedule")
+async def schedule_interview(req: SchedReq):
+    db = os.getenv("DATABASE_URL", "data/recruitment.db")
     try:
-        booking_json = ia.book(email)
-        return json.loads(booking_json)
+        txt = ia.gen_schedule_email(req.name, req.job_id)
+        lnk = f"https://calendly.com/mock-recruitment/{req.job_id}"
+        
+        conn = sqlite3.connect(db)
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE candidates SET status = 'Scheduled' WHERE id = ?", 
+            (req.cand_id,)
+        )
+        conn.commit()
+        conn.close()
+        
+        return {
+            "success": True,
+            "email_body": txt,
+            "invite_link": lnk
+        }
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
-    # Run the server on port 8000
     uvicorn.run(app, host="127.0.0.1", port=8000)
-    
