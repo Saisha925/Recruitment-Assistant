@@ -53,7 +53,7 @@ class ResumeAgent:
             print(f"[ResumeAgent] Error extracting PDF text: {e}")
             return ""
 
-    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+    #@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
     def process_resume(self, file_input) -> str:
         # 1. Actually read the PDF!
         raw_text = self.extract_text_from_pdf(file_input)

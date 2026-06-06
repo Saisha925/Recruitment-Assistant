@@ -32,6 +32,7 @@ interface SidebarProps {
   canRunPipeline: boolean;
 }
 
+// THE FIX: Using your actual SQLite job requisitions
 const roles = [
   { value: "REQ-101", label: "REQ-101: AI/ML Engineer" },
   { value: "REQ-102", label: "REQ-102: Data Scientist" },
@@ -67,7 +68,6 @@ export function Sidebar({
   return (
     <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 border-r border-border/50 bg-sidebar p-6 overflow-y-auto">
       <div className="space-y-6">
-        {/* Role Selector */}
         <Card className="border-border/50 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold text-card-foreground">
@@ -94,7 +94,6 @@ export function Sidebar({
           </CardContent>
         </Card>
 
-        {/* File Upload */}
         <Card className="border-border/50 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold text-card-foreground">
@@ -157,7 +156,6 @@ export function Sidebar({
           </CardContent>
         </Card>
 
-        {/* Run Pipeline Button */}
         <Button
           onClick={onRunPipeline}
           disabled={!canRunPipeline || isPipelineRunning}
@@ -176,7 +174,6 @@ export function Sidebar({
           )}
         </Button>
 
-        {/* Help Text */}
         <p className="text-xs text-center text-muted-foreground px-2">
           Select a target role and upload a resume to analyze candidates with AI
         </p>

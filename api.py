@@ -1,7 +1,9 @@
 import os
 import json
 import sqlite3
-from fastapi import FastAPI, UploadFile, Form, HTTPException
+import traceback # Add this at the very top of api.py with your other imports!
+
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from src.agents.resume_agent import ResumeAgent
 from src.agents.match_agent import MatchAgent
@@ -39,32 +41,55 @@ async def get_jobs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/process-resume")
-async def process_resume(file: UploadFile, job_id: str = Form(...)):
-    """Run the AI Pipeline on an uploaded resume."""
+async def process_resume(
+    job_id: str = Form(...),
+    file: UploadFile = File(...)
+    ):
     try:
-        # 1. Parse Resume (Pass the raw file stream)
+        print(f"🚀 Starting pipeline for Job ID: {job_id}")
+        
+        # 1. Parse Resume 
         res_json = ra.process_resume(file.file)
+        print("✅ Resume parsed successfully!")
+        
+        # Clean markdown formatting if Gemini added it
+        res_json = res_json.replace('```json', '').replace('```', '').strip()
         res_data = json.loads(res_json)
         
         # 2. Match Candidate
         match_json = ma.eval_cand(res_json, job_id)
+        print("✅ Candidate matched successfully!")
+        
+        # Clean markdown formatting here too
+        match_json = match_json.replace('```json', '').replace('```', '').strip()
         match_data = json.loads(match_json)
         
-        # 3. Update Leaderboard
-        rank_json = rka.rank(job_id)
-        rank_data = json.loads(rank_json)
+        # 3. Rank Candidate
+        ra_agent.rank_candidate(
+            cand_id=res_data.get("email", "unknown"),
+            job_id=job_id,
+            score=match_data.get("score", 0),
+            status=match_data.get("status", "pending")
+        )
+        print("✅ Candidate ranked and saved to SQLite!")
+        
+        # 4. Get Leaderboard
+        leaderboard = ra_agent.get_leaderboard(job_id)
         
         return {
             "status": "success",
             "candidate": res_data,
             "match": match_data,
-            "leaderboard": rank_data
+            "leaderboard": leaderboard
         }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        print(f"\n❌ PIPELINE CRASHED: {str(e)}\n") # <-- Add this line
+        print("\n" + "="*50)
+        print("❌ PIPELINE CRASHED! Here is the exact error:")
+        traceback.print_exc()  # This will force the terminal to show the exact line that failed!
+        print("="*50 + "\n")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/schedule-interview")
@@ -79,5 +104,5 @@ async def schedule_interview(email: str = Form(...)):
 if __name__ == "__main__":
     import uvicorn
     # Run the server on port 8000
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
     
