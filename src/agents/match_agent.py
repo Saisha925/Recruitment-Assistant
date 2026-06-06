@@ -45,7 +45,7 @@ class MatchAgent:
             return json.dumps(job)
         return json.dumps({"error": "Job not found"})
 
-    #@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
     def eval_cand(self, res_json: str, j_id: str) -> str:
         job_json = self.get_job(j_id)
         prompt = f"Resume:\n{res_json}\n\nJob Requirements:\n{job_json}"
@@ -67,6 +67,15 @@ class MatchAgent:
         # 2. Save the AI's decision to the SQLite Database so the RankAgent can see it!
         conn = sqlite3.connect(self.db_path)
         curr = conn.cursor()
+        # Safety net: ensure candidates table exists at runtime
+        curr.execute("""
+            CREATE TABLE IF NOT EXISTS candidates (
+                id TEXT PRIMARY KEY,
+                score REAL,
+                reason TEXT,
+                status TEXT
+            )
+        """)
         curr.execute("""
             INSERT OR REPLACE INTO candidates (id, score, reason, status)
             VALUES (?, ?, ?, ?)
