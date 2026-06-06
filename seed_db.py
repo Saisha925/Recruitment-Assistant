@@ -20,14 +20,24 @@ def seed():
             min_yoe REAL
         )
     """)
+
+    # 3. Create the candidates table for MatchAgent and RankAgent
+    curr.execute("""
+        CREATE TABLE IF NOT EXISTS candidates (
+            id TEXT PRIMARY KEY,
+            score REAL,
+            reason TEXT,
+            status TEXT
+        )
+    """)
     
-    # 3. Define our two open requisitions
+    # 4. Define our two open requisitions
     jobs = [
         ("REQ-101", "AI/ML Engineer", json.dumps(["Python", "C++", "Machine Learning"]), 2.0),
         ("REQ-102", "Data Scientist", json.dumps(["Python", "Machine Learning", "NLP", "LLMs"]), 0.5)
     ]
     
-    # 4. Insert them into the jobs table
+    # 5. Insert them into the jobs table
     curr.executemany("""
         INSERT OR REPLACE INTO jobs (id, title, skills, min_yoe)
         VALUES (?, ?, ?, ?)
