@@ -1,7 +1,11 @@
 import os
 import json
 import sqlite3
-import traceback # Add this at the very top of api.py with your other imports!
+import traceback
+from dotenv import load_dotenv
+
+# Load .env BEFORE importing agents (they read GEMINI_API_KEY at import time)
+load_dotenv()
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,16 +71,12 @@ async def process_resume(
         match_data = json.loads(match_json)
         
         # 3. Rank Candidate
-        ra_agent.rank_candidate(
-            cand_id=res_data.get("email", "unknown"),
-            job_id=job_id,
-            score=match_data.get("score", 0),
-            status=match_data.get("status", "pending")
-        )
+        # RankAgent reads from DB (MatchAgent already saved there)
+        rank_json = rka.rank(job_id)
         print("✅ Candidate ranked and saved to SQLite!")
         
         # 4. Get Leaderboard
-        leaderboard = ra_agent.get_leaderboard(job_id)
+        leaderboard = json.loads(rank_json)
         
         return {
             "status": "success",

@@ -1,13 +1,16 @@
 import os
 import json
 import sqlite3
+from pathlib import Path
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from src.schemas import JobDesc, MatchResult, ResumeData
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-load_dotenv()
+# Load .env from project root regardless of working directory
+_env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 # We tweaked the prompt to ensure it counts your academic/internship work!
 SYS_PROMPT = """
@@ -20,7 +23,14 @@ Output MatchResult JSON schema. Status must be 'Shortlisted' or 'Rejected' (thre
 
 class MatchAgent:
     def __init__(self):
-        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key or api_key == "your_google_api_key_here":
+            raise ValueError(
+                "❌ GEMINI_API_KEY is missing or not set!\n"
+                "   1. Get a key from https://aistudio.google.com/apikey\n"
+                "   2. Add it to your .env file: GEMINI_API_KEY=your_key_here"
+            )
+        self.client = genai.Client(api_key=api_key)
         self.db_path = os.getenv("DATABASE_URL", "data/recruitment.db")
 
     def get_job(self, j_id: str) -> str:

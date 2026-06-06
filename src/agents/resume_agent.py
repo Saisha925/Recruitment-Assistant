@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 import PyPDF2
 from google import genai
 from google.genai import types
@@ -7,7 +8,9 @@ from dotenv import load_dotenv
 from src.schemas import ResumeData
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-load_dotenv()
+# Load .env from project root regardless of working directory
+_env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(dotenv_path=_env_path)
 SYS_PROMPT = """
 You are the Resume Screening Agent.
 Extract candidate name, email, skills, education, and yoe.
@@ -25,7 +28,14 @@ Do NOT evaluate or rank.
 
 class ResumeAgent:
     def __init__(self):
-        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key or api_key == "your_google_api_key_here":
+            raise ValueError(
+                "❌ GEMINI_API_KEY is missing or not set!\n"
+                "   1. Get a key from https://aistudio.google.com/apikey\n"
+                "   2. Add it to your .env file: GEMINI_API_KEY=your_key_here"
+            )
+        self.client = genai.Client(api_key=api_key)
 
     def extract_text_from_pdf(self, file_input) -> str:
         """Reads a PDF, resets the pointer, and sanitizes text."""
