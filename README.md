@@ -40,8 +40,6 @@ Google Gemini API (LLM processing)
 
 Custom Python Agent Architecture (ResumeAgent, MatchAgent, RankAgent, InterviewAgent)
 
-📂 Project Structure
-Plaintext
 recruitment-assistant/
 │
 ├── frontend/                  # Next.js React Application
@@ -64,6 +62,8 @@ recruitment-assistant/
 ├── check_models.py            # Utility script to verify Gemini API access
 ├── .env                       # Environment variables (API keys)
 └── requirements.txt           # Python dependencies
+
+
 ⚙️ Installation & Setup
 Prerequisites
 Node.js (v18+)
