@@ -1,34 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthModal } from "@/components/auth-modal";
 import { Dashboard } from "@/components/dashboard";
+import { getToken, clearToken, fetchProfile, type AuthUser } from "@/lib/auth";
 
 export interface User {
   name: string;
   email: string;
   avatar: string;
+  role: string;
+}
+
+function toUser(au: AuthUser): User {
+  return {
+    name: au.name,
+    email: au.email,
+    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${au.email}`,
+    role: au.role,
+  };
 }
 
 export default function Page() {
   const [user, setUser] = useState<User | null>(null);
-  const [showAuth, setShowAuth] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogin = (email: string) => {
-    setUser({
-      name: email.split("@")[0],
-      email,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${email}`,
-    });
-    setShowAuth(false);
+  useEffect(() => {
+    const tk = getToken();
+    if (!tk) {
+      setLoading(false);
+      return;
+    }
+    fetchProfile()
+      .then((au) => setUser(toUser(au)))
+      .catch(() => clearToken())
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleLogin = (au: AuthUser) => {
+    setUser(toUser(au));
   };
 
   const handleLogout = () => {
+    clearToken();
     setUser(null);
-    setShowAuth(true);
   };
 
-  if (showAuth || !user) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return <AuthModal onLogin={handleLogin} />;
   }
 

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from auth import router as auth_router, init_users
 from src.agents.resume_agent import ResumeAgent
 from src.agents.match_agent import MatchAgent
 from src.agents.rank_agent import RankAgent
@@ -20,8 +21,11 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+app.include_router(auth_router)
+init_users()
 
 ra = ResumeAgent()
 ma = MatchAgent()
