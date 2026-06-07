@@ -40,29 +40,6 @@ Google Gemini API (LLM processing)
 
 Custom Python Agent Architecture (ResumeAgent, MatchAgent, RankAgent, InterviewAgent)
 
-recruitment-assistant/
-│
-├── frontend/                  # Next.js React Application
-│   ├── app/                   # Next.js App Router pages
-│   ├── components/            # UI Components (Dashboard, SuccessBanner, etc.)
-│   ├── package.json
-│   └── tailwind.config.js
-│
-├── src/                       # Backend AI Logic
-│   └── agents/
-│       ├── resume_agent.py    # Extracts text from PDFs
-│       ├── match_agent.py     # Evaluates candidate against job reqs
-│       ├── rank_agent.py      # Generates leaderboard scores
-│       └── interview_agent.py # Drafts emails and scheduling links
-│
-├── data/                      # Local SQLite Database storage
-│   └── recruitment.db
-│
-├── api.py                     # Main FastAPI application & routes
-├── check_models.py            # Utility script to verify Gemini API access
-├── .env                       # Environment variables (API keys)
-└── requirements.txt           # Python dependencies
-
 
 ⚙️ Installation & Setup
 Prerequisites
